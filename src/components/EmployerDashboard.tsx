@@ -21,7 +21,6 @@ import {
 interface EmployerDashboardProps {
   onBack: () => void;
   onAddJob: (job: Omit<Job, 'id' | 'posted'>) => void;
-  user?: any;
   onJobCreated?: () => void;
 }
 
@@ -51,7 +50,7 @@ interface Job {
   tags: string[];
 }
 
-const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob, user, onJobCreated }) => {
+const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob, onJobCreated }) => {
   const [activeTab, setActiveTab] = useState('post-job');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
@@ -62,7 +61,9 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob,
     salary: '',
     requirements: '',
     description: '',
-    type: 'Full-time'
+    type: 'Full-time',
+    posterEmail: '',
+    posterName: ''
   });
   const [postedJobs, setPostedJobs] = useState<JobPosting[]>([
     {
@@ -81,16 +82,14 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob,
 
   // Load user's jobs when component mounts
   useEffect(() => {
-    if (user) {
-      loadUserJobs();
-    }
-  }, [user]);
+    // We'll load jobs based on email when form is submitted
+  }, []);
 
-  const loadUserJobs = async () => {
-    if (!user) return;
+  const loadUserJobs = async (email: string) => {
+    if (!email) return;
     
     try {
-      const userJobs = await jobService.getUserJobs(user.id);
+      const userJobs = await jobService.getUserJobs(email);
       const formattedJobs: JobPosting[] = userJobs.map(job => ({
         id: job.id,
         title: job.title,
@@ -175,8 +174,8 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob,
   };
 
   const handlePostJob = () => {
-    if (!user) {
-      alert('You must be signed in to post jobs.');
+    if (!jobForm.posterEmail || !jobForm.posterName) {
+      alert('Please fill in your email and name.');
       return;
     }
 
@@ -207,7 +206,7 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob,
         status: 'active'
       };
 
-      await jobService.createJob(jobData);
+      await jobService.createJob(jobData, jobForm.posterEmail, jobForm.posterName);
       
       // Reset form
       setJobForm({
@@ -217,11 +216,13 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob,
         salary: '',
         requirements: '',
         description: '',
-        type: 'Full-time'
+        type: 'Full-time',
+        posterEmail: '',
+        posterName: ''
       });
 
       // Reload jobs
-      await loadUserJobs();
+      await loadUserJobs(jobForm.posterEmail);
       if (onJobCreated) {
         onJobCreated();
       }
@@ -251,6 +252,36 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob,
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
         <div className="space-y-6">
           {/* Basic Information */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h3 className="text-lg font-semibold text-blue-800 mb-3">Contact Information</h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Name *
+                </label>
+                <input
+                  type="text"
+                  value={jobForm.posterName}
+                  onChange={(e) => handleInputChange('posterName', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="John Doe"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Email *
+                </label>
+                <input
+                  type="email"
+                  value={jobForm.posterEmail}
+                  onChange={(e) => handleInputChange('posterEmail', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="john@company.com"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

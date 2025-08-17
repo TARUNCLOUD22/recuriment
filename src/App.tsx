@@ -3,8 +3,7 @@ import { useEffect } from 'react';
 import LandingPage from './components/LandingPage';
 import JobSeekerDashboard from './components/JobSeekerDashboard';
 import EmployerDashboard from './components/EmployerDashboard';
-import AuthModal from './components/AuthModal';
-import { supabase, jobService, authService, Job as SupabaseJob } from './lib/supabase';
+import { supabase, jobService, Job as SupabaseJob } from './lib/supabase';
 
 interface Job {
   id: string;
@@ -21,21 +20,14 @@ interface Job {
 
 function App() {
   const [currentView, setCurrentView] = useState<'landing' | 'job-seeker' | 'employer'>('landing');
-  const [user, setUser] = useState<any>(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [isLoading, setIsLoading] = useState(true);
   const [jobs, setJobs] = useState<Job[]>([
   ]);
 
-  // Initialize auth state and load jobs
+  // Initialize and load jobs
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Get initial session
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user || null);
-
         // Load jobs
         await loadJobs();
       } catch (error) {
@@ -46,18 +38,6 @@ function App() {
     };
 
     initializeApp();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user || null);
-        if (event === 'SIGNED_IN') {
-          await loadJobs();
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
   }, []);
 
   const loadJobs = async () => {
@@ -94,13 +74,7 @@ function App() {
   };
 
   const addJob = (newJob: Omit<Job, 'id' | 'posted'>) => {
-    // This will be handled by the EmployerDashboard component
-    // which will call Supabase directly and then reload jobs
-    loadJobs();
-  };
-
-  const handleAuthSuccess = () => {
-    setShowAuthModal(false);
+    // Reload jobs after adding
     loadJobs();
   };
 
@@ -109,21 +83,7 @@ function App() {
   };
 
   const handlePostJob = () => {
-    if (!user) {
-      setAuthMode('signin');
-      setShowAuthModal(true);
-      return;
-    }
     setCurrentView('employer');
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await authService.signOut();
-      setCurrentView('landing');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
   };
 
   if (isLoading) {
@@ -144,33 +104,22 @@ function App() {
         <LandingPage 
           onGetJob={handleGetJob}
           onPostJob={handlePostJob}
-          user={user}
-          onSignOut={handleSignOut}
         />
       )}
       {currentView === 'job-seeker' && (
         <JobSeekerDashboard 
           onBack={() => setCurrentView('landing')} 
           jobs={jobs}
-          user={user}
         />
       )}
       {currentView === 'employer' && (
         <EmployerDashboard 
           onBack={() => setCurrentView('landing')} 
           onAddJob={addJob}
-          user={user}
           onJobCreated={loadJobs}
         />
       )}
       </div>
-      
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={handleAuthSuccess}
-        mode={authMode}
-      />
     </>
   );
 }

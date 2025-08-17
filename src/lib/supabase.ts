@@ -35,6 +35,8 @@ export interface JobInsert {
   description: string;
   requirements?: string[];
   tags?: string[];
+  posted_by?: string; // email
+  poster_name?: string;
   status?: 'active' | 'draft' | 'closed';
 }
 
@@ -57,11 +59,11 @@ export const jobService = {
   },
 
   // Get jobs by user
-  async getUserJobs(userId: string): Promise<Job[]> {
+  async getUserJobs(email: string): Promise<Job[]> {
     const { data, error } = await supabase
       .from('jobs')
       .select('*')
-      .eq('posted_by', userId)
+      .eq('posted_by', email)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -73,18 +75,13 @@ export const jobService = {
   },
 
   // Create a new job
-  async createJob(job: JobInsert): Promise<Job> {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      throw new Error('User must be authenticated to create jobs');
-    }
-
+  async createJob(job: JobInsert, posterEmail: string, posterName: string): Promise<Job> {
     const { data, error } = await supabase
       .from('jobs')
       .insert({
         ...job,
-        posted_by: user.id,
+        posted_by: posterEmail,
+        poster_name: posterName,
       })
       .select()
       .single();
@@ -145,60 +142,5 @@ export const jobService = {
     }
 
     return data || [];
-  }
-};
-
-// Auth helper functions
-export const authService = {
-  // Sign up with email and password
-  async signUp(email: string, password: string) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (error) {
-      console.error('Error signing up:', error);
-      throw error;
-    }
-
-    return data;
-  },
-
-  // Sign in with email and password
-  async signIn(email: string, password: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      console.error('Error signing in:', error);
-      throw error;
-    }
-
-    return data;
-  },
-
-  // Sign out
-  async signOut() {
-    const { error } = await supabase.auth.signOut();
-
-    if (error) {
-      console.error('Error signing out:', error);
-      throw error;
-    }
-  },
-
-  // Get current user
-  async getCurrentUser() {
-    const { data: { user }, error } = await supabase.auth.getUser();
-
-    if (error) {
-      console.error('Error getting user:', error);
-      throw error;
-    }
-
-    return user;
   }
 };

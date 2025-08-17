@@ -24,7 +24,6 @@ import {
 interface JobSeekerDashboardProps {
   onBack: () => void;
   jobs: Job[];
-}
 
 interface Job {
   id: string;
