@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { jobService, JobInsert } from '../lib/supabase';
 import { 
   ArrowLeft, 
   Building2, 
@@ -19,6 +21,8 @@ import {
 interface EmployerDashboardProps {
   onBack: () => void;
   onAddJob: (job: Omit<Job, 'id' | 'posted'>) => void;
+  user?: any;
+  onJobCreated?: () => void;
 }
 
 interface JobPosting {
@@ -47,9 +51,10 @@ interface Job {
   tags: string[];
 }
 
-const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob }) => {
+const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob, user, onJobCreated }) => {
   const [activeTab, setActiveTab] = useState('post-job');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
   const [jobForm, setJobForm] = useState({
     title: '',
     company: '',
@@ -73,6 +78,48 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob 
       status: 'active'
     }
   ]);
+
+  // Load user's jobs when component mounts
+  useEffect(() => {
+    if (user) {
+      loadUserJobs();
+    }
+  }, [user]);
+
+  const loadUserJobs = async () => {
+    if (!user) return;
+    
+    try {
+      const userJobs = await jobService.getUserJobs(user.id);
+      const formattedJobs: JobPosting[] = userJobs.map(job => ({
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        salary: job.salary,
+        requirements: job.requirements,
+        description: job.description,
+        type: job.type,
+        posted: formatDate(job.created_at),
+        status: job.status as 'active' | 'draft' | 'closed'
+      }));
+      setPostedJobs(formattedJobs);
+    } catch (error) {
+      console.error('Error loading user jobs:', error);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
+    return `${Math.ceil(diffDays / 30)} months ago`;
+  };
 
   const genAI = new GoogleGenerativeAI('AIzaSyB7Hbl5seOhDqFSgPZCvV4ymlFTdKM_5gw');
 
@@ -128,55 +175,65 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob 
   };
 
   const handlePostJob = () => {
+    if (!user) {
+      alert('You must be signed in to post jobs.');
+      return;
+    }
+
     if (!jobForm.title || !jobForm.company || !jobForm.location || !jobForm.description) {
       alert('Please fill in all required fields.');
       return;
     }
 
-    // Add job to global state for job seekers to see
-    const jobForJobSeekers: Omit<Job, 'id' | 'posted'> = {
-      title: jobForm.title,
-      company: jobForm.company,
-      location: jobForm.location,
-      type: jobForm.type,
-      salary: jobForm.salary,
-      description: jobForm.description,
-      requirements: jobForm.requirements.split(',').map(req => req.trim()).filter(req => req),
-      tags: [
-        jobForm.type,
-        jobForm.location.includes('Remote') ? 'Remote' : 'On-site',
-        jobForm.salary.includes('$') ? 'Competitive Salary' : 'Salary Negotiable'
-      ].filter(tag => tag)
-    };
-    
-    // Add to global jobs state
-    onAddJob(jobForJobSeekers);
+    postJobToSupabase();
+  };
 
-    const newJob: JobPosting = {
-      id: Date.now().toString(),
-      title: jobForm.title,
-      company: jobForm.company,
-      location: jobForm.location,
-      salary: jobForm.salary,
-      requirements: jobForm.requirements.split(',').map(req => req.trim()).filter(req => req),
-      description: jobForm.description,
-      type: jobForm.type,
-      posted: 'Just now',
-      status: 'active'
-    };
+  const postJobToSupabase = async () => {
+    setIsPosting(true);
+    try {
+      const jobData: JobInsert = {
+        title: jobForm.title,
+        company: jobForm.company,
+        location: jobForm.location,
+        type: jobForm.type,
+        salary: jobForm.salary,
+        description: jobForm.description,
+        requirements: jobForm.requirements.split(',').map(req => req.trim()).filter(req => req),
+        tags: [
+          jobForm.type,
+          jobForm.location.includes('Remote') ? 'Remote' : 'On-site',
+          jobForm.salary.includes('$') ? 'Competitive Salary' : 'Salary Negotiable'
+        ].filter(tag => tag),
+        status: 'active'
+      };
 
-    setPostedJobs(prev => [newJob, ...prev]);
-    setJobForm({
-      title: '',
-      company: '',
-      location: '',
-      salary: '',
-      requirements: '',
-      description: '',
-      type: 'Full-time'
-    });
-    alert('Job posted successfully!');
-    setActiveTab('manage-jobs');
+      await jobService.createJob(jobData);
+      
+      // Reset form
+      setJobForm({
+        title: '',
+        company: '',
+        location: '',
+        salary: '',
+        requirements: '',
+        description: '',
+        type: 'Full-time'
+      });
+
+      // Reload jobs
+      await loadUserJobs();
+      if (onJobCreated) {
+        onJobCreated();
+      }
+
+      alert('Job posted successfully!');
+      setActiveTab('manage-jobs');
+    } catch (error) {
+      console.error('Error posting job:', error);
+      alert('Failed to post job. Please try again.');
+    } finally {
+      setIsPosting(false);
+    }
   };
 
   const renderPostJob = () => (
@@ -335,10 +392,20 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob 
               </button>
               <button
                 onClick={handlePostJob}
+                disabled={isPosting}
                 className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all flex items-center space-x-2"
               >
-                <Briefcase className="w-5 h-5" />
-                <span>Post Job</span>
+                {isPosting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Posting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Briefcase className="w-5 h-5" />
+                    <span>Post Job</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

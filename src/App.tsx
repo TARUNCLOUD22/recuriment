@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import LandingPage from './components/LandingPage';
 import JobSeekerDashboard from './components/JobSeekerDashboard';
 import EmployerDashboard from './components/EmployerDashboard';
+import AuthModal from './components/AuthModal';
+import { supabase, jobService, authService, Job as SupabaseJob } from './lib/supabase';
 
 interface Job {
   id: string;
@@ -18,75 +21,157 @@ interface Job {
 
 function App() {
   const [currentView, setCurrentView] = useState<'landing' | 'job-seeker' | 'employer'>('landing');
+  const [user, setUser] = useState<any>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [isLoading, setIsLoading] = useState(true);
   const [jobs, setJobs] = useState<Job[]>([
-    {
-      id: '1',
-      title: 'Senior Frontend Developer',
-      company: 'TechCorp',
-      location: 'San Francisco, CA',
-      type: 'Full-time',
-      salary: '$120k - $160k',
-      posted: '2 days ago',
-      description: 'We are looking for a talented Senior Frontend Developer to join our dynamic team. You will be responsible for building and maintaining high-quality web applications using modern technologies.',
-      requirements: ['React', 'TypeScript', 'Node.js', '5+ years experience'],
-      tags: ['Remote', 'Tech', 'Senior Level']
-    },
-    {
-      id: '2',
-      title: 'UX/UI Designer',
-      company: 'DesignStudio',
-      location: 'New York, NY',
-      type: 'Full-time',
-      salary: '$80k - $110k',
-      posted: '1 week ago',
-      description: 'Join our creative team as a UX/UI Designer. Create intuitive and visually appealing user interfaces for web and mobile applications.',
-      requirements: ['Figma', 'Adobe Creative Suite', 'User Research', '3+ years experience'],
-      tags: ['Design', 'Creative', 'Hybrid']
-    },
-    {
-      id: '3',
-      title: 'Data Scientist',
-      company: 'DataInsights',
-      location: 'Austin, TX',
-      type: 'Contract',
-      salary: '$90k - $130k',
-      posted: '3 days ago',
-      description: 'Analyze complex datasets to derive actionable insights. Work with machine learning models and statistical analysis.',
-      requirements: ['Python', 'SQL', 'Machine Learning', 'Statistics'],
-      tags: ['Data', 'Analytics', 'Remote']
-    }
   ]);
 
-  const addJob = (newJob: Omit<Job, 'id' | 'posted'>) => {
-    const job: Job = {
-      ...newJob,
-      id: Date.now().toString(),
-      posted: 'Just now'
+  // Initialize auth state and load jobs
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Get initial session
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user || null);
+
+        // Load jobs
+        await loadJobs();
+      } catch (error) {
+        console.error('Error initializing app:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    setJobs(prev => [job, ...prev]);
+
+    initializeApp();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user || null);
+        if (event === 'SIGNED_IN') {
+          await loadJobs();
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loadJobs = async () => {
+    try {
+      const supabaseJobs = await jobService.getActiveJobs();
+      const formattedJobs: Job[] = supabaseJobs.map(job => ({
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        type: job.type,
+        salary: job.salary,
+        posted: formatDate(job.created_at),
+        description: job.description,
+        requirements: job.requirements,
+        tags: job.tags
+      }));
+      setJobs(formattedJobs);
+    } catch (error) {
+      console.error('Error loading jobs:', error);
+    }
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
+    return `${Math.ceil(diffDays / 30)} months ago`;
+  };
+
+  const addJob = (newJob: Omit<Job, 'id' | 'posted'>) => {
+    // This will be handled by the EmployerDashboard component
+    // which will call Supabase directly and then reload jobs
+    loadJobs();
+  };
+
+  const handleAuthSuccess = () => {
+    setShowAuthModal(false);
+    loadJobs();
+  };
+
+  const handleGetJob = () => {
+    setCurrentView('job-seeker');
+  };
+
+  const handlePostJob = () => {
+    if (!user) {
+      setAuthMode('signin');
+      setShowAuthModal(true);
+      return;
+    }
+    setCurrentView('employer');
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await authService.signOut();
+      setCurrentView('landing');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen">
+    <>
+      <div className="min-h-screen">
       {currentView === 'landing' && (
         <LandingPage 
-          onGetJob={() => setCurrentView('job-seeker')}
-          onPostJob={() => setCurrentView('employer')}
+          onGetJob={handleGetJob}
+          onPostJob={handlePostJob}
+          user={user}
+          onSignOut={handleSignOut}
         />
       )}
       {currentView === 'job-seeker' && (
         <JobSeekerDashboard 
           onBack={() => setCurrentView('landing')} 
           jobs={jobs}
+          user={user}
         />
       )}
       {currentView === 'employer' && (
         <EmployerDashboard 
           onBack={() => setCurrentView('landing')} 
           onAddJob={addJob}
+          user={user}
+          onJobCreated={loadJobs}
         />
       )}
-    </div>
+      </div>
+      
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={handleAuthSuccess}
+        mode={authMode}
+      />
+    </>
   );
 }
 
