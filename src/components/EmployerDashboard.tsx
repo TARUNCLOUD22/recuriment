@@ -53,6 +53,14 @@ interface Job {
 }
 
 const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob }) => {
+  const categories = [
+    'Actuarial & Underwriting',
+    'Data Science & Data Engineering', 
+    'Product Management',
+    'Catastrophe Modeling',
+    'Machine Learning & Predictive Modeling'
+  ];
+
   const [activeTab, setActiveTab] = useState('post-job');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -101,7 +109,8 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob 
     salary: '',
     requirements: '',
     description: '',
-    type: 'Full-time'
+    type: 'Full-time',
+    category: 'Actuarial & Underwriting'
   });
   const [postedJobs, setPostedJobs] = useState<JobPosting[]>([
     {
@@ -242,7 +251,8 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob 
       salary: '',
       requirements: '',
       description: '',
-      type: 'Full-time'
+      type: 'Full-time',
+      category: 'Actuarial & Underwriting'
     });
     alert('Job posted successfully!');
     setActiveTab('manage-jobs');
@@ -319,6 +329,23 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onBack, onAddJob 
                 <option value="Internship">Internship</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Expertise Category *
+            </label>
+            <select
+              value={jobForm.category}
+              onChange={(e) => handleInputChange('category', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            >
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

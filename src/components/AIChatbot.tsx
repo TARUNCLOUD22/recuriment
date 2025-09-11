@@ -195,27 +195,29 @@ const AIChatbot: React.FC<AIChatbotProps> = ({ onBack, userProfile, resumeData }
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200 px-4 lg:px-6 py-4 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="font-medium">Back to Dashboard</span>
-          </button>
-          
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
-              <MessageCircle className="w-5 h-5 text-white" />
+      <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 flex-shrink-0">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={onBack}
+              className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="font-medium">Back to Dashboard</span>
+            </button>
+            
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
+                <MessageCircle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">AI Career Assistant</h1>
+                <p className="text-sm text-gray-500">Get personalized career guidance</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">AI Career Assistant</h1>
-              <p className="text-sm text-gray-500">Get personalized career guidance</p>
-            </div>
+            
+            <div className="w-24"></div> {/* Spacer for balance */}
           </div>
-          
-          <div className="w-24"></div> {/* Spacer for balance */}
         </div>
       </div>
 
@@ -223,14 +225,14 @@ const AIChatbot: React.FC<AIChatbotProps> = ({ onBack, userProfile, resumeData }
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto">
-          <div className="px-4 lg:px-8 py-8">
+          <div className="max-w-6xl mx-auto px-6 py-8">
             <div className="space-y-8">
               {messages.map((message) => (
                 <div
                   key={message.id}
                   className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`flex items-start space-x-4 max-w-5xl ${message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
+                  <div className={`flex items-start space-x-4 max-w-4xl ${message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
                     {/* Avatar */}
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                       message.type === 'user' 
@@ -245,7 +247,7 @@ const AIChatbot: React.FC<AIChatbotProps> = ({ onBack, userProfile, resumeData }
                     </div>
                     
                     {/* Message Bubble */}
-                    <div className={`rounded-2xl px-5 py-4 shadow-sm max-w-3xl ${
+                    <div className={`rounded-2xl px-5 py-4 shadow-sm max-w-2xl ${
                       message.type === 'user'
                         ? 'bg-blue-600 text-white'
                         : 'bg-white text-gray-800 border border-gray-100'
@@ -264,7 +266,7 @@ const AIChatbot: React.FC<AIChatbotProps> = ({ onBack, userProfile, resumeData }
               {/* Loading Message */}
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="flex items-start space-x-4 max-w-5xl">
+                  <div className="flex items-start space-x-4 max-w-4xl">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center flex-shrink-0">
                       <Bot className="w-5 h-5 text-white" />
                     </div>
@@ -286,7 +288,7 @@ const AIChatbot: React.FC<AIChatbotProps> = ({ onBack, userProfile, resumeData }
         {/* Quick Questions - Only show for first message */}
         {messages.length === 1 && (
           <div className="border-t border-gray-200 bg-white">
-            <div className="px-4 lg:px-8 py-6">
+            <div className="max-w-6xl mx-auto px-6 py-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick questions to get started:</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {quickQuestions.map((question, index) => (
@@ -308,7 +310,7 @@ const AIChatbot: React.FC<AIChatbotProps> = ({ onBack, userProfile, resumeData }
 
         {/* Sticky Input Area */}
         <div className="bg-white border-t border-gray-200 shadow-lg sticky bottom-0">
-          <div className="px-4 lg:px-8 py-4">
+          <div className="max-w-6xl mx-auto px-6 py-4">
             <div className="flex space-x-4">
               <div className="flex-1 relative">
                 <textarea
